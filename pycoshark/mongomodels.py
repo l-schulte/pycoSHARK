@@ -246,6 +246,8 @@ class CodeReview(Document):
     labels = ListField(StringField())
 
     change_id = StringField()
+    topic = StringField()
+    topic_issue_id: ObjectIdField()
     author_id = ObjectIdField()
     submitter_id = ObjectIdField()
 
