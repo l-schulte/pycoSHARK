@@ -248,7 +248,7 @@ class CodeReview(Document):
 
     change_id = StringField()
     topic = StringField()
-    linked_issue_id = ObjectIdField()
+    linked_issue_ids = ListField(ObjectIdField())
     author_id = ObjectIdField()
     submitter_id = ObjectIdField()
 
