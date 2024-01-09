@@ -222,6 +222,7 @@ class CodeReviewSystem(Document):
 
     project_id = ObjectIdField(required=True)
     url = StringField(required=True)
+    type = StringField()
     last_updated = DateTimeField()
 
 
@@ -247,7 +248,7 @@ class CodeReview(Document):
 
     change_id = StringField()
     topic = StringField()
-    topic_issue_id = ObjectIdField()
+    linked_issue_id = ObjectIdField()
     author_id = ObjectIdField()
     submitter_id = ObjectIdField()
 
