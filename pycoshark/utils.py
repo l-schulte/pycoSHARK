@@ -80,23 +80,88 @@ def get_base_argparser(description, version):
     return parser
 
 
-_WONT_FIX_TYPES = {'not a bug', "won't do", "won't fix", 'duplicate', 'cannot reproduce', 'not a problem',
-                   'works for me', 'invalid'}
-_RESOLVED_TYPES = {'delivered', 'resolved', 'fixed', 'workaround', 'done', 'implemented', 'auto closed'}
-_CLOSED_STATUS = {'resolved', 'closed'}
+_JIRA_TYPES = {
+    'wont_fix': {'not a bug', "won't do", "won't fix", 'duplicate', 'cannot reproduce', 'not a problem', 'works for me', 'invalid'},
+    'resolved': {'delivered', 'resolved', 'fixed', 'workaround', 'done', 'implemented', 'auto closed'},
+    'closed': {'resolved', 'closed'}
+}
 
+_LAUNCHPAD_TYPES = {
+    'wont_fix': {'invalid', "won't fix", 'opinion'},
+    'resolved': {'fix committed'},
+    'closed': {'fix released', 'completed'}
+}
+
+_GITHUB_TYPES = {
+    'wont_fix': {},
+    'resolved': {},
+    'closed': {'closed'}
+}
+
+
+def is_resolved_and_fixed(issue, its, project_name = None) -> bool:
+    """
+    Checks if an issue was addressed (at least once). Applies strategies based on the type of the issue tracking system (its)
+    :param issue: the issue
+    :param its: the issue tracking system
+    :param project_name: the name of the project (required for launchpad)
+    """
+
+    if 'launchpad' in its.url:
+        return launchpad_is_resolved_and_fixed(issue, project_name)
+    elif 'jira' in its.url:
+        return jira_is_resolved_and_fixed(issue)
+    elif 'github' in its.url:
+        return github_is_resolved_and_fixed(issue)
+    else:
+        raise Exception(f'the type of the issue systems is not supported! {its.url}')
+
+def github_is_resolved_and_fixed(issue: Issue):
+    """
+    checks if an GitHub issue was addressed (at least once)
+    :param issue: the issue
+    :return: true if there was a time when the issue was closed by an commit, false otherwise
+    """
+    events: list[Event] = Event.objects(issue_id=issue.id).order_by('created_at')
+
+    for event in events:
+        if event.status and event.status.lower() in _GITHUB_TYPES['closed'] and event.commit_id:
+            return True
+
+    return False
+
+def launchpad_is_resolved_and_fixed(issue: Issue, project_name: str):
+    """
+    checks if an Launchpad issue was addressed (at least once)
+    :param issue: the issue
+    :return: true if there was a time when the issue is closed (fix released or closed) and the status was closed or resolved (or similar),
+             false otherwise
+    """
+    if issue.status and issue.status.lower() in _LAUNCHPAD_TYPES['wont_fix']:
+        return False
+    elif issue.status and issue.status.lower() in _LAUNCHPAD_TYPES['closed']:
+        return True
+    
+    status_tag = f'{project_name}: status'
+    events: list[Event] = Event.objects(issue_id=issue.id, status=status_tag).order_by('created_at')
+
+    for event in events:
+        if event.new_value and event.new_value.lower() in {**_LAUNCHPAD_TYPES['closed'], **_LAUNCHPAD_TYPES['resolved']}:
+            return True
+
+    return False
 
 def jira_is_resolved_and_fixed(issue):
     """
     checks if an JIRA issue was addressed (at least once)
     :param issue: the issue
     :return: true if there was a time when the issue was closed and the status was resolved as fixed (or similar),
-    false otherwise
+             false otherwise
     """
     # first we check if the issue itself contains information about its state
-    if issue.resolution and issue.resolution.lower() in _WONT_FIX_TYPES:
+    if issue.resolution and issue.resolution.lower() in _JIRA_TYPES['wont_fix']:
         return False
-    if issue.resolution and issue.resolution.lower() in _RESOLVED_TYPES and issue.status and issue.status.lower() in _CLOSED_STATUS:
+    if issue.resolution and issue.resolution.lower() in _JIRA_TYPES['resolved'] and issue.status and issue.status.lower() in _JIRA_TYPES['closed']:
         return True
 
     # then we check all events related to the issue
@@ -107,15 +172,30 @@ def jira_is_resolved_and_fixed(issue):
             current_status = e.new_value.lower()
         if e.status is not None and e.status.lower() == 'resolution' and e.new_value is not None:
             current_resolution = e.new_value.lower()
-        if current_status in _CLOSED_STATUS and current_resolution in _RESOLVED_TYPES:
+        if current_status in _JIRA_TYPES['closed'] and current_resolution in _JIRA_TYPES['resolved']:
             return True
     return False
 
-
+SUPPORTED_FILES = {'.java', '.py'}
+BLACKLISTED_FILES = {'package-info.java'}
 TEST_FILES = re.compile(r'(^|\/)(test|tests|test_long_running|testing|legacy-tests|testdata|test-framework|derbyTesting|unitTests|java\/stubs|test-lib|src\/it|src-lib-test|src-test|tests-src|test-cactus|test-data|test-deprecated|src_unitTests|test-tools|gateway-test-release-utils|gateway-test-ldap|nifi-mock)\/', re.IGNORECASE)
 DOCUMENTATION_FILES = re.compile(r'(^|\/)(doc|docs|example|examples|sample|samples|demo|tutorial|helloworld|userguide|showcase|SafeDemo)\/', re.IGNORECASE)
 OTHER_EXCLUSIONS = re.compile(r'(^|\/)(_site|auxiliary-builds|gen-java|external|nifi-external)\/', re.IGNORECASE)
 
+def filename_filter(filename, production_only=True):
+    """
+    checks if a file is a java or python file
+    :param filename: name of the file
+    :param production_only: if True, the function excludes tests and documentation, eg. test and example folders
+    :return: True if the file is java or python, false otherwise
+    """
+    ret = filename.endswith(tuple(SUPPORTED_FILES)) and not filename.endswith(tuple(BLACKLISTED_FILES))
+    if production_only:
+        ret = ret and \
+              not re.search(TEST_FILES, filename) and \
+              not re.search(DOCUMENTATION_FILES, filename) and \
+              not re.search(OTHER_EXCLUSIONS, filename)
+    return ret
 
 def java_filename_filter(filename, production_only=True):
     """
