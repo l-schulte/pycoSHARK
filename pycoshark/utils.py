@@ -146,7 +146,7 @@ def launchpad_is_resolved_and_fixed(issue: Issue, project_name: str):
     events: list[Event] = Event.objects(issue_id=issue.id, status=status_tag).order_by('created_at')
 
     for event in events:
-        if event.new_value and event.new_value.lower() in {**_LAUNCHPAD_TYPES['closed'], **_LAUNCHPAD_TYPES['resolved']}:
+        if event.new_value and (event.new_value.lower() in _LAUNCHPAD_TYPES['closed'] or event.new_value.lower() in _LAUNCHPAD_TYPES['resolved']):
             return True
 
     return False
