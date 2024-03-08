@@ -120,15 +120,11 @@ def github_is_resolved_and_fixed(issue: Issue):
     """
     checks if an GitHub issue was addressed (at least once)
     :param issue: the issue
-    :return: true if there was a time when the issue was closed by an commit, false otherwise
+    :return: true if there was a time when the issue was referenced by an commit (and therefore worked on), false otherwise
     """
-    events: list[Event] = Event.objects(issue_id=issue.id).order_by('created_at')
+    event = Event.objects(issue_id=issue.id, commit_id__exists=True).first()
 
-    for event in events:
-        if event.status and event.status.lower() in _GITHUB_TYPES['closed'] and event.commit_id:
-            return True
-
-    return False
+    return True if event is not None else False
 
 def launchpad_is_resolved_and_fixed(issue: Issue, project_name: str):
     """
