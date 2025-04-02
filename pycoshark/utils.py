@@ -614,7 +614,7 @@ def copy_projects(
                             # check if file action references must be copied
                             if cur_col == 'file_action' and \
                                     not collections.isdisjoint(set(file_action_ref_collections)):
-                                file_actions = source_db.file_action.find({'commit_id': {'$in': cur_commit_slice}})
+                                file_actions = list(source_db.file_action.find({'commit_id': {'$in': cur_commit_slice}}))
                                 file_action_ids = [file_action['_id'] for file_action in file_actions]
                                 file_action_file_ids = [file_action['file_id'] for file_action in file_actions]
                                 file_action_parent_revision_hashes = set([file_action['parent_revision_hash'] for file_action in file_actions])
