@@ -700,24 +700,21 @@ def _copy_data(collection, condition, source_db, target_db, verbose=True, file_a
         print("copying data for collection %s" % collection)
     if source_db[collection].count_documents(condition) > 0:
         data = source_db[collection].find(condition, no_cursor_timeout=True)
-
+        new_data = []
         if file_action_mapping is not None:
-            cnt = 0
             for source_file_action_id, target_file_action_id in file_action_mapping:
                 for d in data:
                     if d['file_action_id'] == source_file_action_id:
                         d['file_action_id'] = target_file_action_id
-                        cnt += 1
+                        new_data.append(d)
                         continue
-            if len(file_action_mapping) == 0:
-                raise ValueError(f"file_action_mapping is empty, while there are {data.count()} file actions in the data")
-            if cnt != len(file_action_mapping):
-                raise ValueError(f"Not all file actions were mapped to target file actions: {cnt} of {len(file_action_mapping)}")
+            if len(new_data) != data.count():
+                print(f"missmatch between source file action count ({data.count()}) and mappable target file action count ({len(new_data)})")
         else:
             raise ValueError("file_action_mapping must be provided for merging hunks")
 
         try:
-            target_db[collection].insert_many(data, ordered=False)
+            target_db[collection].insert_many(new_data, ordered=False)
         except BulkWriteError:
             pass
 
