@@ -593,7 +593,7 @@ def copy_projects(
                                            source_db=source_db, target_db=target_db, verbose=False)
 
                 if not collections.isdisjoint(set().union(commit_ref_collections, file_action_ref_collections)):
-                    commits = list(source_db.commit.find({'vcs_system_id': vcs_system['_id']}, {'_id': 1}, no_cursor_timeout=True))
+                    commits = list(source_db.commit.find({'vcs_system_id': vcs_system['_id']}, {'_id': 1, 'revision_hash': 1}, no_cursor_timeout=True))
                     print("start copying data that references commit (%i commits total)" % len(commits))
 
                     for i in range(0, math.ceil(len(commits) / 100)):
