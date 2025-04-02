@@ -611,14 +611,26 @@ def copy_projects(
                             # check if file action references must be copied
                             if cur_col == 'file_action' and \
                                     not collections.isdisjoint(set(file_action_ref_collections)):
-                                file_actions = [file_action['_id'] for file_action in
-                                                source_db.file_action.find({'commit_id': {'$in': cur_commit_slice}})]
+                                file_actions = source_db.file_action.find({'commit_id': {'$in': cur_commit_slice}})
+                                file_action_ids = [file_action['_id'] for file_action in file_actions]
+                                
+                                def target_file_action_mapping(file_action):
+                                    file = source_db.file.find_one({'_id': file_action['file_id']})
+                                    target_file = target_db.file.find_one({'path': file['path'], 'vcs_system_id': file['vcs_system_id']})
+                                    target_file_action = target_db.file_action.find_one({'file_id': target_file['_id'], 'parent_revision_hash': file_action['parent_revision_hash']})
+
+                                    return (file_action['_id'], target_file_action['_id'])
+                                
+                                file_action_mapping = [target_file_action_mapping(file_action) for file_action in file_actions]
+
                                 if True:
                                     for cur_faref_col in file_action_ref_collections:
                                         if cur_faref_col in collections:
+
                                             _copy_data(collection=cur_faref_col,
-                                                       condition={'file_action_id': {'$in': file_actions}},
-                                                       source_db=source_db, target_db=target_db, verbose=False)
+                                                       condition={'file_action_id': {'$in': file_action_ids}},
+                                                       source_db=source_db, target_db=target_db, verbose=False,
+                                                       file_action_mapping=file_action_mapping)
                         print((i + 1) * 100, 'commits done')
 
         if not collections.isdisjoint(
@@ -676,7 +688,7 @@ def copy_projects(
                                            source_db=source_db, target_db=target_db, verbose=False)
 
 
-def _copy_data(collection, condition, source_db, target_db, verbose=True):
+def _copy_data(collection, condition, source_db, target_db, verbose=True, file_action_mapping=None):
     """
     Helper function for copying data between databases.  Copies all data of the that matches the condition between the
     provided databases.
@@ -685,6 +697,19 @@ def _copy_data(collection, condition, source_db, target_db, verbose=True):
         print("copying data for collection %s" % collection)
     if source_db[collection].count_documents(condition) > 0:
         data = source_db[collection].find(condition, no_cursor_timeout=True)
+
+        if file_action_mapping is not None:
+            cnt = 0
+            for source_file_action_id, target_file_action_id in file_action_mapping:
+                for d in data:
+                    if d['file_action_id'] == source_file_action_id:
+                        d['file_action_id'] = target_file_action_id
+                        cnt += 1
+                        continue
+            
+            if cnt != len(file_action_mapping):
+                raise ValueError("Not all file actions were mapped to target file actions")
+
         try:
             target_db[collection].insert_many(data, ordered=False)
         except BulkWriteError:
