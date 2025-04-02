@@ -627,15 +627,33 @@ def copy_projects(
                                 target_file_action_file_ids = [target_file_action_file['_id'] for target_file_action_file in target_file_action_files]
                                 target_file_actions = list(target_db.file_action.find({'file_id': {'$in': target_file_action_file_ids}, 'parent_revision_hash': {'$in': list(file_action_parent_revision_hashes)}}))
 
-                                file_action_mapping = []
+                                file_action_mapping = {}
 
                                 for file_action in file_actions:
                                     try:
-                                        file_action_file = [file_action_file for file_action_file in file_action_files if file_action_file['_id'] == file_action['file_id']][0]
-                                        target_file_action_file = [target_file_action_file for target_file_action_file in target_file_action_files if target_file_action_file['path'] == file_action_file['path']][0]
-                                        target_file_action = [target_file_action for target_file_action in target_file_actions if target_file_action['file_id'] == target_file_action_file['_id'] and target_file_action['parent_revision_hash'] == file_action['parent_revision_hash']][0]
+                                        file_action_file = [file_action_file for file_action_file in file_action_files if file_action_file['_id'] == file_action['file_id']]
+                                        if len(file_action_file) > 1:
+                                            raise ValueError(f"multiple file action files found for file action {file_action['_id']}")
+                                        if len(file_action_file) == 0:
+                                            raise ValueError(f"no file action file found for file action {file_action['_id']}")
+                                        file_action_file = file_action_file[0]
+                                        target_file_action_file = [target_file_action_file for target_file_action_file in target_file_action_files if target_file_action_file['path'] == file_action_file['path']]
+                                        if len(target_file_action_file) > 1:
+                                            raise ValueError(f"multiple target file action files found for file action {file_action['_id']}")
+                                        if len(target_file_action_file) == 0:
+                                            raise ValueError(f"no target file action file found for file action {file_action['_id']}")
+                                        target_file_action_file = target_file_action_file[0]
+                                        target_file_action = [target_file_action for target_file_action in target_file_actions if target_file_action['file_id'] == target_file_action_file['_id'] and target_file_action['parent_revision_hash'] == file_action['parent_revision_hash']]
+                                        if len(target_file_action) > 1:
+                                            raise ValueError(f"multiple target file actions found for file action {file_action['_id']}")
+                                        if len(target_file_action) == 0:
+                                            raise ValueError(f"no target file action found for file action {file_action['_id']}")
+                                        target_file_action = target_file_action[0]
                                         
-                                        file_action_mapping.append((file_action['_id'], target_file_action['_id']))
+                                        if file_action['_id'] in file_action_mapping and file_action_mapping[file_action['_id']] != target_file_action['_id']:
+                                            raise ValueError(f"a different file action mapping for file action {file_action['_id']} already exists")
+
+                                        file_action_mapping[file_action['_id']] = target_file_action['_id']
                                     except Exception as e:
                                         traceback.print_exc()
                                         print(f"\tfile action: {file_action}")
