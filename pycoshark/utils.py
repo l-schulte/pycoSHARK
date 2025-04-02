@@ -574,9 +574,9 @@ def copy_projects(
                             for i in range(0, math.ceil(len(commits) / 100)):
                                 slice_start = i * 100
                                 slice_end = min((i + 1) * 100, len(commits))
-                                cur_commit_slice = commits[slice_start:slice_end]
+                                cur_commit_ids_slice = commits[slice_start:slice_end]
                                 _copy_data(collection=cur_col,
-                                           condition={'_id': {'$in': cur_commit_slice}},
+                                           condition={'_id': {'$in': cur_commit_ids_slice}},
                                            source_db=source_db, target_db=target_db, verbose=False)
 
                 if not collections.isdisjoint(set(travis_ref_collections)):
@@ -593,22 +593,24 @@ def copy_projects(
                                            source_db=source_db, target_db=target_db, verbose=False)
 
                 if not collections.isdisjoint(set().union(commit_ref_collections, file_action_ref_collections)):
-                    commits = [commit['_id'] for commit in
-                               source_db.commit.find({'vcs_system_id': vcs_system['_id']}, {'_id': 1},
-                                                     no_cursor_timeout=True)]
+                    commits = list(source_db.commit.find({'vcs_system_id': vcs_system['_id']}, {'_id': 1}, no_cursor_timeout=True))
                     print("start copying data that references commit (%i commits total)" % len(commits))
 
                     for i in range(0, math.ceil(len(commits) / 100)):
                         slice_start = i * 100
                         slice_end = min((i + 1) * 100, len(commits))
                         cur_commit_slice = commits[slice_start:slice_end]
+                        cur_commit_ids_slice = [commit['_id'] for commit in cur_commit_slice]
+                        cur_target_commits_slice = list(target_db.commit.find({'vcs_system_id': target_vcs_system['_id'], 'revision_hash': {'$in': [commit['revision_hash'] for commit in cur_commit_slice]}}))
+                        cur_target_commit_ids_slice = [commit['_id'] for commit in cur_target_commits_slice]
+                        cur_target_commits_slice_dict = {commit['revision_hash']: commit for commit in cur_target_commits_slice}
 
                         for cur_col in commit_ref_collections:
                             if cur_col in collections:
                                 if cur_col == 'commit_changes':  # special case because no field commit_id
-                                    condition = {'old_commit_id': {'$in': cur_commit_slice}}
+                                    condition = {'old_commit_id': {'$in': cur_commit_ids_slice}}
                                 else:
-                                    condition = {'commit_id': {'$in': cur_commit_slice}}
+                                    condition = {'commit_id': {'$in': cur_commit_ids_slice}}
                                 if cur_col in collections:
                                     _copy_data(collection=cur_col, condition=condition, source_db=source_db,
                                                target_db=target_db, verbose=False)
@@ -616,34 +618,38 @@ def copy_projects(
                             # check if file action references must be copied
                             if cur_col == 'file_action' and \
                                     not collections.isdisjoint(set(file_action_ref_collections)):
-                                file_actions = list(source_db.file_action.find({'commit_id': {'$in': cur_commit_slice}}))
+                                file_actions = list(source_db.file_action.find({'commit_id': {'$in': cur_commit_ids_slice}}))
                                 file_action_ids = [file_action['_id'] for file_action in file_actions]
                                 file_action_file_ids = [file_action['file_id'] for file_action in file_actions]
-                                file_action_parent_revision_hashes = set([file_action['parent_revision_hash'] for file_action in file_actions])
                                 file_action_files = list(source_db.file.find({'_id': {'$in': file_action_file_ids}, 'vcs_system_id': vcs_system['_id']}))
                                 file_action_files_paths = set([file_action_file['path'] for file_action_file in file_action_files])
 
                                 target_file_action_files = list(target_db.file.find({'path': {'$in': list(file_action_files_paths)}, 'vcs_system_id': target_vcs_system['_id']}))
                                 target_file_action_file_ids = [target_file_action_file['_id'] for target_file_action_file in target_file_action_files]
-                                target_file_actions = list(target_db.file_action.find({'file_id': {'$in': target_file_action_file_ids}, 'parent_revision_hash': {'$in': list(file_action_parent_revision_hashes)}}))
+                                target_file_actions = list(target_db.file_action.find({'file_id': {'$in': target_file_action_file_ids}, 'commit_id': {'$in': list(cur_target_commit_ids_slice)}}))
 
                                 file_action_mapping = {}
 
                                 for file_action in file_actions:
                                     try:
+                                        file_action_commit = [commit for commit in cur_commit_slice if commit['_id'] == file_action['commit_id']][0]
+                                        target_file_action_commit = cur_target_commits_slice_dict[file_action_commit['revision_hash']]
+
                                         file_action_file = [file_action_file for file_action_file in file_action_files if file_action_file['_id'] == file_action['file_id']]
                                         if len(file_action_file) > 1:
                                             raise ValueError(f"multiple file action files found for file action {file_action['_id']}")
                                         if len(file_action_file) == 0:
                                             raise ValueError(f"no file action file found for file action {file_action['_id']}")
                                         file_action_file = file_action_file[0]
+
                                         target_file_action_file = [target_file_action_file for target_file_action_file in target_file_action_files if target_file_action_file['path'] == file_action_file['path']]
                                         if len(target_file_action_file) > 1:
                                             raise ValueError(f"multiple target file action files found for file action {file_action['_id']}")
                                         if len(target_file_action_file) == 0:
                                             raise ValueError(f"no target file action file found for file action {file_action['_id']}")
                                         target_file_action_file = target_file_action_file[0]
-                                        target_file_action = [target_file_action for target_file_action in target_file_actions if target_file_action['file_id'] == target_file_action_file['_id'] and target_file_action['parent_revision_hash'] == file_action['parent_revision_hash']]
+
+                                        target_file_action = [target_file_action for target_file_action in target_file_actions if target_file_action['file_id'] == target_file_action_file['_id'] and target_file_action['commit_id'] == target_file_action_commit['_id']]
                                         if len(target_file_action) > 1:
                                             raise ValueError(f"multiple target file actions found for file action {file_action['_id']}")
                                         if len(target_file_action) == 0:
