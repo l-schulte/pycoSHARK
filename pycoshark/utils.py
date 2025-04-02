@@ -628,11 +628,16 @@ def copy_projects(
                                 file_action_mapping = []
 
                                 for file_action in file_actions:
-                                    file_action_file = [file_action_file for file_action_file in file_action_files if file_action_file['_id'] == file_action['file_id']][0]
-                                    target_file_action_file = [target_file_action_file for target_file_action_file in target_file_action_files if target_file_action_file['path'] == file_action_file['path']][0]
-                                    target_file_action = [target_file_action for target_file_action in target_file_actions if target_file_action['file_id'] == target_file_action_file['_id'] and target_file_action['parent_revision_hash'] == file_action['parent_revision_hash']][0]
-                                    
-                                    file_action_mapping.append((file_action['_id'], target_file_action['_id']))
+                                    try:
+                                        file_action_file = [file_action_file for file_action_file in file_action_files if file_action_file['_id'] == file_action['file_id']][0]
+                                        target_file_action_file = [target_file_action_file for target_file_action_file in target_file_action_files if target_file_action_file['path'] == file_action_file['path']][0]
+                                        target_file_action = [target_file_action for target_file_action in target_file_actions if target_file_action['file_id'] == target_file_action_file['_id'] and target_file_action['parent_revision_hash'] == file_action['parent_revision_hash']][0]
+                                        
+                                        file_action_mapping.append((file_action['_id'], target_file_action['_id']))
+                                    except Exception as e:
+                                        print(f"error while copying file action: {e}")
+                                        print(f"\tfile action: {file_action}")
+                                        continue
 
                                 if True:
                                     for cur_faref_col in file_action_ref_collections:
