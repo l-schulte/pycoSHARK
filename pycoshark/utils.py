@@ -709,8 +709,10 @@ def _copy_data(collection, condition, source_db, target_db, verbose=True, file_a
                         cnt += 1
                         continue
             
-            if cnt != len(file_action_mapping):
+            if cnt != len(file_action_mapping) or len(file_action_mapping) == 0:
                 raise ValueError("Not all file actions were mapped to target file actions")
+        else:
+            raise ValueError("file_action_mapping must be provided for merging hunks")
 
         try:
             target_db[collection].insert_many(data, ordered=False)
