@@ -656,7 +656,7 @@ def copy_projects(
                                                 break
 
                                         if not ok:
-                                            raise ValueError(f"no target file action found for file action {file_action['_id']}")
+                                            raise ValueError(f"no target file action found for file action {file_action['_id']}, {len(target_file_actions)} candidates, file_id: {target_file_action_file['_id']}, commit_id: {target_file_action_commit['_id']}")
 
                                         
                                     except Exception as e:
