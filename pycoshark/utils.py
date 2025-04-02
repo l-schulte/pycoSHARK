@@ -542,7 +542,7 @@ def copy_projects(
                              ['repository_file']))):
             print('copying data that references vcs_system...')
             for vcs_system in source_db.vcs_system.find({'project_id': project['_id']}):
-                target_vcs_system = target_db.vcs_system.find_one({'name': vcs_system['name']})
+                target_vcs_system = target_db.vcs_system.find_one({'project_id': project['_id']})
 
                 # first treat the special case repository data
                 if 'repository_data' in collections:
