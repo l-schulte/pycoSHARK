@@ -614,24 +614,25 @@ def copy_projects(
                             # check if file action references must be copied
                             if cur_col == 'file_action' and \
                                     not collections.isdisjoint(set(file_action_ref_collections)):
-                                file_actions = []
-                                file_action_ids = []
+                                file_actions = source_db.file_action.find({'commit_id': {'$in': cur_commit_slice}})
+                                file_action_ids = [file_action['_id'] for file_action in file_actions]
+                                file_action_file_ids = [file_action['file_id'] for file_action in file_actions]
+                                file_action_parent_revision_hashes = set([file_action['parent_revision_hash'] for file_action in file_actions])
+                                file_action_files = source_db.file.find({'_id': {'$in': file_action_file_ids}, 'vcs_system_id': vcs_system['_id']})
+                                file_action_files_paths = set([file_action_file['path'] for file_action_file in file_action_files])
+
+                                target_file_action_files = target_db.file.find({'path': {'$in': list(file_action_files_paths)}, 'vcs_system_id': target_vcs_system['_id']})
+                                target_file_action_file_ids = [target_file_action_file['_id'] for target_file_action_file in target_file_action_files]
+                                target_file_actions = target_db.file_action.find({'file_id': {'$in': target_file_action_file_ids}, 'parent_revision_hash': {'$in': list(file_action_parent_revision_hashes)}})
+
                                 file_action_mapping = []
 
-                                for file_action in source_db.file_action.find({'commit_id': {'$in': cur_commit_slice}}):
-                                    file_actions.append(file_action)
-                                    file_action_ids.append(file_action['_id'])
-
-                                    file = source_db.file.find_one({'_id': file_action['file_id']})
-                                    target_file = target_db.file.find_one({'path': file['path'], 'vcs_system_id': target_vcs_system['_id']})
-                                    target_file_action = target_db.file_action.find_one({'file_id': target_file['_id'], 'parent_revision_hash': file_action['parent_revision_hash']})
-
+                                for file_action in file_actions:
+                                    file_action_file = [file_action_file for file_action_file in file_action_files if file_action_file['_id'] == file_action['file_id']][0]
+                                    target_file_action_file = [target_file_action_file for target_file_action_file in target_file_action_files if target_file_action_file['path'] == file_action_file['path']][0]
+                                    target_file_action = [target_file_action for target_file_action in target_file_actions if target_file_action['file_id'] == target_file_action_file['_id'] and target_file_action['parent_revision_hash'] == file_action['parent_revision_hash']][0]
+                                    
                                     file_action_mapping.append((file_action['_id'], target_file_action['_id']))
-
-                                if len(file_action_mapping) != len(file_actions):
-                                    print(f"missmatch between source file action count ({file_actions.count()}) and mappable target file action count ({len(file_action_mapping)})")
-                                if len(file_actions):
-                                    print(f"no file action found for commit {vcs_system['revision_hash']}")
 
                                 if True:
                                     for cur_faref_col in file_action_ref_collections:
