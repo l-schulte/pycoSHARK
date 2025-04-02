@@ -516,8 +516,10 @@ def copy_projects(
     for collection in collections:
         for name, index_info in source_db[collection].index_information().items():
             keys = index_info['key']
-            del (index_info['ns'])
-            del (index_info['v'])
+            if 'ns' in index_info:
+                del (index_info['ns'])
+            if 'v' in index_info:
+                del (index_info['v'])
             del (index_info['key'])
             target_db[collection].create_index(keys, name=name, **index_info)
 
