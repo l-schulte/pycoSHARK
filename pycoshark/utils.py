@@ -741,12 +741,10 @@ def _copy_data(collection, condition, source_db, target_db, verbose=True, file_a
         data = source_db[collection].find(condition, no_cursor_timeout=True)
         new_data = []
         if file_action_mapping is not None:
-            for source_file_action_id, target_file_action_id in file_action_mapping:
-                for d in data:
-                    if d['file_action_id'] == source_file_action_id:
-                        d['file_action_id'] = target_file_action_id
-                        new_data.append(d)
-                        continue
+            for d in data:
+                d['file_action_id'] = file_action_mapping[d['file_action_id']]
+                new_data.append(d)
+                continue
             if len(new_data) != data.count():
                 print(f"missmatch between source file action count ({data.count()}) and mappable target file action count ({len(new_data)} / {len(file_action_mapping)})")
         else:
