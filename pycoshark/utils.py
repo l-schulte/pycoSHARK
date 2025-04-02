@@ -649,17 +649,15 @@ def copy_projects(
                                             raise ValueError(f"no target file action file found for file action {file_action['_id']}")
                                         target_file_action_file = target_file_action_file[0]
 
-                                        target_file_action = [target_file_action for target_file_action in target_file_actions if target_file_action['file_id'] == target_file_action_file['_id'] and target_file_action['commit_id'] == target_file_action_commit['_id']]
-                                        if len(target_file_action) > 1:
-                                            raise ValueError(f"multiple target file actions found for file action {file_action['_id']}")
-                                        if len(target_file_action) == 0:
-                                            raise ValueError(f"no target file action found for file action {file_action['_id']}")
-                                        target_file_action = target_file_action[0]
-                                        
-                                        if file_action['_id'] in file_action_mapping and file_action_mapping[file_action['_id']] != target_file_action['_id']:
-                                            raise ValueError(f"a different file action mapping for file action {file_action['_id']} already exists")
+                                        target_file_actions = [target_file_action for target_file_action in target_file_actions if target_file_action['file_id'] == target_file_action_file['_id'] and target_file_action['commit_id'] == target_file_action_commit['_id']]
+                                        for target_file_action in target_file_actions:
+                                            if target_file_action['parent_revision_hash'] == file_action['parent_revision_hash']:
+                                                if file_action['_id'] in file_action_mapping and file_action_mapping[file_action['_id']] != target_file_action['_id']:
+                                                    raise ValueError(f"a different file action mapping for file action {file_action['_id']} already exists")
+                                                file_action_mapping[file_action['_id']] = target_file_action['_id']
+                                                break
 
-                                        file_action_mapping[file_action['_id']] = target_file_action['_id']
+                                        
                                     except Exception as e:
                                         traceback.print_exc()
                                         print(f"\tfile action: {file_action}")
@@ -742,11 +740,11 @@ def _copy_data(collection, condition, source_db, target_db, verbose=True, file_a
         new_data = []
         if file_action_mapping is not None:
             for d in data:
-                d['file_action_id'] = file_action_mapping[d['file_action_id']]
-                new_data.append(d)
-                continue
-            if len(new_data) != data.count():
-                print(f"missmatch between source file action count ({data.count()}) and mappable target file action count ({len(new_data)} / {len(file_action_mapping)})")
+                if d['file_action_id'] in file_action_mapping:
+                    d['file_action_id'] = file_action_mapping[d['file_action_id']]
+                    new_data.append(d)
+                else:
+                    print(f"file action {d['file_action_id']} not found in mapping")
         else:
             raise ValueError("file_action_mapping must be provided for merging hunks")
 
