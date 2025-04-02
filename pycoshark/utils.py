@@ -626,6 +626,11 @@ def copy_projects(
                                 
                                 file_action_mapping = [target_file_action_mapping(file_action) for file_action in file_actions]
 
+                                if len(file_action_mapping) != file_actions.count():
+                                    print(f"missmatch between source file action count ({file_actions.count()}) and mappable target file action count ({len(file_action_mapping)})")
+                                if file_actions.count() == 0:
+                                    print(f"no file action found for commit {vcs_system['revision_hash']}")
+
                                 if True:
                                     for cur_faref_col in file_action_ref_collections:
                                         if cur_faref_col in collections:
