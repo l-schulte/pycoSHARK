@@ -614,21 +614,23 @@ def copy_projects(
                             # check if file action references must be copied
                             if cur_col == 'file_action' and \
                                     not collections.isdisjoint(set(file_action_ref_collections)):
-                                file_actions = source_db.file_action.find({'commit_id': {'$in': cur_commit_slice}})
-                                file_action_ids = [file_action['_id'] for file_action in file_actions]
-                                
-                                def target_file_action_mapping(file_action):
+                                file_actions = []
+                                file_action_ids = []
+                                file_action_mapping = []
+
+                                for file_action in source_db.file_action.find({'commit_id': {'$in': cur_commit_slice}}):
+                                    file_actions.append(file_action)
+                                    file_action_ids.append(file_action['_id'])
+
                                     file = source_db.file.find_one({'_id': file_action['file_id']})
                                     target_file = target_db.file.find_one({'path': file['path'], 'vcs_system_id': target_vcs_system['_id']})
                                     target_file_action = target_db.file_action.find_one({'file_id': target_file['_id'], 'parent_revision_hash': file_action['parent_revision_hash']})
 
-                                    return (file_action['_id'], target_file_action['_id'])
-                                
-                                file_action_mapping = [target_file_action_mapping(file_action) for file_action in file_actions]
+                                    file_action_mapping.append((file_action['_id'], target_file_action['_id']))
 
-                                if len(file_action_mapping) != file_actions.count():
+                                if len(file_action_mapping) != len(file_actions):
                                     print(f"missmatch between source file action count ({file_actions.count()}) and mappable target file action count ({len(file_action_mapping)})")
-                                if file_actions.count() == 0:
+                                if len(file_actions):
                                     print(f"no file action found for commit {vcs_system['revision_hash']}")
 
                                 if True:
