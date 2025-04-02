@@ -542,6 +542,7 @@ def copy_projects(
                              ['repository_file']))):
             print('copying data that references vcs_system...')
             for vcs_system in source_db.vcs_system.find({'project_id': project['_id']}):
+                target_vcs_system = target_db.vcs_system.find_one({'name': vcs_system['name']})
 
                 # first treat the special case repository data
                 if 'repository_data' in collections:
@@ -618,7 +619,7 @@ def copy_projects(
                                 
                                 def target_file_action_mapping(file_action):
                                     file = source_db.file.find_one({'_id': file_action['file_id']})
-                                    target_file = target_db.file.find_one({'path': file['path'], 'vcs_system_id': file['vcs_system_id']})
+                                    target_file = target_db.file.find_one({'path': file['path'], 'vcs_system_id': target_vcs_system['_id']})
                                     target_file_action = target_db.file_action.find_one({'file_id': target_file['_id'], 'parent_revision_hash': file_action['parent_revision_hash']})
 
                                     return (file_action['_id'], target_file_action['_id'])
@@ -708,8 +709,9 @@ def _copy_data(collection, condition, source_db, target_db, verbose=True, file_a
                         d['file_action_id'] = target_file_action_id
                         cnt += 1
                         continue
-            
-            if cnt != len(file_action_mapping) or len(file_action_mapping) == 0:
+            if len(file_action_mapping) == 0:
+                raise ValueError("file_action_mapping is empty")
+            if cnt != len(file_action_mapping):
                 raise ValueError("Not all file actions were mapped to target file actions")
         else:
             raise ValueError("file_action_mapping must be provided for merging hunks")
