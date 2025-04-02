@@ -710,7 +710,7 @@ def _copy_data(collection, condition, source_db, target_db, verbose=True, file_a
                         cnt += 1
                         continue
             if len(file_action_mapping) == 0:
-                raise ValueError(f"file_action_mapping is empty, while there are {len(data)} file actions in the data")
+                raise ValueError(f"file_action_mapping is empty, while there are {data.count()} file actions in the data")
             if cnt != len(file_action_mapping):
                 raise ValueError(f"Not all file actions were mapped to target file actions: {cnt} of {len(file_action_mapping)}")
         else:
