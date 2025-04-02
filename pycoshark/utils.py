@@ -2,6 +2,8 @@ import argparse
 import math
 import re
 
+import traceback
+
 import networkx as nx
 import gridfs
 
@@ -618,12 +620,12 @@ def copy_projects(
                                 file_action_ids = [file_action['_id'] for file_action in file_actions]
                                 file_action_file_ids = [file_action['file_id'] for file_action in file_actions]
                                 file_action_parent_revision_hashes = set([file_action['parent_revision_hash'] for file_action in file_actions])
-                                file_action_files = source_db.file.find({'_id': {'$in': file_action_file_ids}, 'vcs_system_id': vcs_system['_id']})
+                                file_action_files = list(source_db.file.find({'_id': {'$in': file_action_file_ids}, 'vcs_system_id': vcs_system['_id']}))
                                 file_action_files_paths = set([file_action_file['path'] for file_action_file in file_action_files])
 
-                                target_file_action_files = target_db.file.find({'path': {'$in': list(file_action_files_paths)}, 'vcs_system_id': target_vcs_system['_id']})
+                                target_file_action_files = list(target_db.file.find({'path': {'$in': list(file_action_files_paths)}, 'vcs_system_id': target_vcs_system['_id']}))
                                 target_file_action_file_ids = [target_file_action_file['_id'] for target_file_action_file in target_file_action_files]
-                                target_file_actions = target_db.file_action.find({'file_id': {'$in': target_file_action_file_ids}, 'parent_revision_hash': {'$in': list(file_action_parent_revision_hashes)}})
+                                target_file_actions = list(target_db.file_action.find({'file_id': {'$in': target_file_action_file_ids}, 'parent_revision_hash': {'$in': list(file_action_parent_revision_hashes)}}))
 
                                 file_action_mapping = []
 
@@ -635,7 +637,7 @@ def copy_projects(
                                         
                                         file_action_mapping.append((file_action['_id'], target_file_action['_id']))
                                     except Exception as e:
-                                        print(f"error while copying file action: {e}")
+                                        traceback.print_exc()
                                         print(f"\tfile action: {file_action}")
                                         continue
 
