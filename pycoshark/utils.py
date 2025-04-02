@@ -709,7 +709,7 @@ def _copy_data(collection, condition, source_db, target_db, verbose=True, file_a
                         new_data.append(d)
                         continue
             if len(new_data) != data.count():
-                print(f"missmatch between source file action count ({data.count()}) and mappable target file action count ({len(new_data)})")
+                print(f"missmatch between source file action count ({data.count()}) and mappable target file action count ({len(new_data)} / {len(file_action_mapping)})")
         else:
             raise ValueError("file_action_mapping must be provided for merging hunks")
 
