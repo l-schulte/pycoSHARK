@@ -647,8 +647,15 @@ def copy_projects(
 
                                         potential_target_file_actions = [target_file_action for target_file_action in target_file_actions if target_file_action['file_id'] == target_file_action_file['_id'] and target_file_action['commit_id'] == target_file_action_commit['_id']]
                                         ok = False
+                                        def check_same(source, target, candidates):
+                                            if 'parent_revision_hash' not in source and 'parent_revision_hash' not in target and len(candidates) == 1:
+                                                return True
+                                            if source['parent_revision_hash'] == target['parent_revision_hash']:
+                                                return True
+                                            
                                         for target_file_action in potential_target_file_actions:
-                                            if target_file_action['parent_revision_hash'] == file_action['parent_revision_hash']:
+
+                                            if check_same(file_action, target_file_action, potential_target_file_actions):
                                                 if file_action['_id'] in file_action_mapping and file_action_mapping[file_action['_id']] != target_file_action['_id']:
                                                     raise ValueError(f"a different file action mapping for file action {file_action['_id']} already exists")
                                                 file_action_mapping[file_action['_id']] = target_file_action['_id']
@@ -656,7 +663,7 @@ def copy_projects(
                                                 break
 
                                         if not ok:
-                                            raise ValueError(f"no target file action found for file action {file_action['_id']}, {len(potential_target_file_actions)} candidates, file_id: {target_file_action_file['_id']}, commit_id: {target_file_action_commit['_id']}")
+                                            print(f"no target file action found for file action {file_action['_id']}, {len(potential_target_file_actions)} candidates, file_id: {target_file_action_file['_id']}, commit_id: {target_file_action_commit['_id']}")
 
                                         
                                     except Exception as e:
