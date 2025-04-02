@@ -680,7 +680,7 @@ def copy_projects(
                                                        condition={'file_action_id': {'$in': file_action_ids}},
                                                        source_db=source_db, target_db=target_db, verbose=False,
                                                        file_action_mapping=file_action_mapping)
-                        print((i + 1) * 100, 'commits done')
+                        print((i + 1) * 100, 'commits done', flush=True)
 
         if not collections.isdisjoint(
                 (set().union(its_ref_collections, issue_ref_collections))):
@@ -735,6 +735,8 @@ def copy_projects(
                                 _copy_data(collection=cur_col,
                                            condition={'pull_request_review_id': {'$in': pull_request_reviews}},
                                            source_db=source_db, target_db=target_db, verbose=False)
+
+    print("DONE")
 
 
 def _copy_data(collection, condition, source_db, target_db, verbose=True, file_action_mapping=None):
