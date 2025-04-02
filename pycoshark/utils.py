@@ -713,6 +713,9 @@ def _copy_data(collection, condition, source_db, target_db, verbose=True, file_a
         else:
             raise ValueError("file_action_mapping must be provided for merging hunks")
 
+        if len(new_data) == 0:
+            return
+
         try:
             target_db[collection].insert_many(new_data, ordered=False)
         except BulkWriteError:
