@@ -663,8 +663,9 @@ def copy_projects(
                                                 break
 
                                         if not ok:
-                                            print(f"no target file action found for file action {file_action['_id']}, {len(potential_target_file_actions)} candidates, file_id: {target_file_action_file['_id']}, commit_id: {target_file_action_commit['_id']}")
-
+                                            commit_exists = target_db.commit.find_one({'_id': target_file_action_commit['_id']})
+                                            if commit_exists is not None:
+                                                print(f"target commit {target_file_action_commit['_id']} exists, but source file action {file_action['_id']} cannot be matched")
                                         
                                     except Exception as e:
                                         traceback.print_exc()
