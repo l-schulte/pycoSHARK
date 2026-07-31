@@ -124,13 +124,13 @@ class BranchCoverage(EmbeddedDocument):
     :property line_number: (:class:`~mongoengine.fields.IntField`) line number in the file where the branch starts
     :property block_number: (:class:`~mongoengine.fields.IntField`) block number in the line
     :property branch_number: (:class:`~mongoengine.fields.IntField`) branch number in the block
-    :property hits: (:class:`~mongoengine.fields.IntField`) number of hits for this branch
+    :property taken: (:class:`~mongoengine.fields.IntField`) number of times this branch was taken
     """
 
     line_number = IntField(required=True)
     block_number = IntField(required=True)
     branch_number = IntField(required=True)
-    hits = IntField(required=True)
+    taken = IntField(required=True)
 
 
 class FileCoverage(TypedDocument):
