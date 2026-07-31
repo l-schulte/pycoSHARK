@@ -14,6 +14,7 @@ from mongoengine import (
     FileField,
     FloatField,
     EmbeddedDocumentListField,
+    EnumField,
 )
 import hashlib
 from typing import TYPE_CHECKING, Any
@@ -47,6 +48,130 @@ class BaseSystem(TypedDocument):
     type = StringField(choices=type_choices)
     meta_data = DictField()
 
+class CoverageSystem(BaseSystem):
+    """
+    CoverageSystem class.
+    Inherits from :class:`mongoengine.Document`
+
+    Index: url
+
+    ShardKey: url
+
+    :property start_date: (:class:`~mongoengine.fields.DateTimeField`) start date of the coverage data collection
+    :property end_date: (:class:`~mongoengine.fields.DateTimeField`) end date of the coverage data collection
+    """
+
+    start_date = DateTimeField()
+    end_date = DateTimeField()
+
+
+class CoverageReport(TypedDocument):
+    """
+    CoverageReport class.
+    Inherits from :class:`mongoengine.Document`
+
+    Index: coverage_system_id, commit_id
+
+    ShardKey: coverage_system_id, commit_id
+
+    :property coverage_system_id: (:class:`~mongoengine.fields.ObjectIdField`) :class:`~pycoshark.mongomodels.CoverageSystem` id to which this coverage report belongs
+    :property commit_id: (:class:`~mongoengine.fields.ObjectIdField`) :class:`~pycoshark.mongomodels.Commit` id to which this coverage report belongs
+    :property success: (:class:`~mongoengine.fields.EnumField`) success, failure, not_applicable
+    :property test_suite_type: (:class:`~mongoengine.fields.StringField`) type of the test suite, e.g., unit, integration, system
+    """
+
+    meta = {"indexes": ["coverage_system_id", "commit_id"]}
+
+    coverage_system_id = ObjectIdField(required=True)
+    commit_id = ObjectIdField(required=True)
+    success = EnumField(enum=("success", "failure", "not_applicable"), required=True)
+    test_suite_type = StringField()
+
+
+class LineCoverage(EmbeddedDocument):
+    """
+    LineCoverage class.
+    Inherits from :class:`mongoengine.EmbeddedDocument`
+
+    :property line_number: (:class:`~mongoengine.fields.IntField`) line number in the file
+    :property hits: (:class:`~mongoengine.fields.IntField`) number of hits for this line
+    """
+
+    line_number = IntField(required=True)
+    hits = IntField(required=True)
+
+
+class FunctionCoverage(EmbeddedDocument):
+    """
+    FunctionCoverage class.
+    Inherits from :class:`mongoengine.EmbeddedDocument`
+
+    :property line_number: (:class:`~mongoengine.fields.IntField`) line number where the function starts
+    :property function_name: (:class:`~mongoengine.fields.StringField`) name of the function (if available)
+    :property hits: (:class:`~mongoengine.fields.IntField`) number of hits for this function
+    """
+
+    line_number = IntField(required=True)
+    function_name = StringField()
+    hits = IntField(required=True)
+
+
+class BranchCoverage(EmbeddedDocument):
+    """
+    BranchCoverage class.
+    Inherits from :class:`mongoengine.EmbeddedDocument`
+
+    :property line_number: (:class:`~mongoengine.fields.IntField`) line number in the file where the branch starts
+    :property block_number: (:class:`~mongoengine.fields.IntField`) block number in the line
+    :property branch_number: (:class:`~mongoengine.fields.IntField`) branch number in the block
+    :property hits: (:class:`~mongoengine.fields.IntField`) number of hits for this branch
+    """
+
+    line_number = IntField(required=True)
+    block_number = IntField(required=True)
+    branch_number = IntField(required=True)
+    hits = IntField(required=True)
+
+
+class FileCoverage(TypedDocument):
+    """
+    FileCoverage class.
+    Inherits from :class:`mongoengine.Document`
+
+    Index: coverage_report_id, (coverage_report_id, file_id)
+
+    ShardKey: file_id
+
+    :property coverage_report_id: (:class:`~mongoengine.fields.ObjectIdField`) :class:`~pycoshark.mongomodels.CoverageReport` id to which this file coverage belongs
+    :property file_id: (:class:`~mongoengine.fields.ObjectIdField`) :class:`~pycoshark.mongomodels.File` id to which this file coverage belongs
+    :property file_path: (:class:`~mongoengine.fields.StringField`) original path to the file as indicated in the coverage report
+    :property lines_found: (:class:`~mongoengine.fields.IntField`) number of lines found in the file
+    :property lines_hit: (:class:`~mongoengine.fields.IntField`) number of lines hit in the file
+    :property line_coverage: (:class:`~mongoengine.fields.EmbeddedDocumentListField` of :class:`~pycoshark.mongomodels.LineCoverage`) list of line coverages for this file
+    :property functions_found: (:class:`~mongoengine.fields.IntField`) number of functions found in the file
+    :property functions_hit: (:class:`~mongoengine.fields.IntField`) number of functions hit in the file
+    :property function_coverage: (:class:`~mongoengine.fields.EmbeddedDocumentListField` of :class:`~pycoshark.mongomodels.FunctionCoverage`) list of function coverages for this file
+    :property branches_found: (:class:`~mongoengine.fields.IntField`) number of branches found in the file
+    :property branches_hit: (:class:`~mongoengine.fields.IntField`) number of branches hit in the file
+    :property branch_coverage: (:class:`~mongoengine.fields.EmbeddedDocumentListField` of :class:`~pycoshark.mongomodels.BranchCoverage`) list of branch coverages for this file
+    """
+
+    meta = {"indexes": ["coverage_report_id", ("coverage_report_id", "file_id")]}
+
+    # PK: coverage_report_id
+    # Shard Key: file_id
+
+    coverage_report_id = ObjectIdField(required=True)
+    file_id = ObjectIdField(required=True)
+    lines_found = IntField()
+    lines_hit = IntField()
+    line_coverage = EmbeddedDocumentListField(LineCoverage)
+    functions_found = IntField()
+    functions_hit = IntField()
+    function_coverage = EmbeddedDocumentListField(FunctionCoverage)
+    branches_found = IntField()
+    branches_hit = IntField()
+    branch_coverage = EmbeddedDocumentListField(BranchCoverage)
 
 class MailingSystem(BaseSystem):
     pass
